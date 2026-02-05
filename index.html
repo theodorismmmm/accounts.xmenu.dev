@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>XMenu Accounts</title>
+    <style>
+      :root { color-scheme: dark; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background:#0f172a; color:#e2e8f0; }
+      body { margin:0; min-height:100vh; display:grid; place-items:center; padding:24px; }
+      main { width:min(520px,100%); background:rgba(15,23,42,.85); border:1px solid rgba(148,163,184,.2); border-radius:18px; padding:20px; display:grid; gap:14px; }
+      input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(148,163,184,.3); background:rgba(15,23,42,.8); color:#e2e8f0; }
+      button { padding:12px 14px; border-radius:999px; border:1px solid rgba(148,163,184,.35); background:transparent; color:#e2e8f0; font-weight:700; cursor:pointer; }
+      .row { display:flex; gap:10px; flex-wrap:wrap; }
+      .msg { color:#94a3b8; min-height:1.2em; }
+      hr { border:none; border-top:1px solid rgba(148,163,184,.15); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 style="margin:0; font-size:1.3rem;">Account</h1>
+
+      <div class="msg" id="msg"></div>
+
+      <input id="email" type="email" placeholder="Email" autocomplete="email" />
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+
+      <div class="row">
+        <button id="login" type="button">Login</button>
+        <button id="register" type="button">Register</button>
+      </div>
+
+      <hr />
+
+      <div style="font-weight:700;">Display name (shown on xmenu.dev)</div>
+      <input id="name" type="text" placeholder="Your name" maxlength="60" />
+      <div class="row">
+        <button id="saveName" type="button">Save name</button>
+        <button id="logout" type="button">Logout</button>
+        <button id="back" type="button">Back to xmenu.dev</button>
+      </div>
+
+      <hr />
+
+      <div style="font-weight:700;">Delete account</div>
+      <div class="row">
+        <button id="delete" type="button">Delete account</button>
+      </div>
+    </main>
+
+    <script type="module">
+      import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+      const SUPABASE_URL = "https://miivgganhzzqfzebmaxx.supabase.co";
+      const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1paXZnZ2FuaHp6cWZ6ZWJtYXh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyOTg0OTYsImV4cCI6MjA4NTg3NDQ5Nn0.WAB1I8f8B46WzgvTqNn_jFiMBUb-63LPtCpCMrAkCoY";
+
+      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      const qs = new URLSearchParams(location.search);
+      const returnTo = qs.get("returnTo") || "https://xmenu.dev/";
+
+      const msg = document.getElementById("msg");
+      const emailEl = document.getElementById("email");
+      const passEl = document.getElementById("password");
+      const nameEl = document.getElementById("name");
+
+      function setMsg(t) { msg.textContent = t || ""; }
+
+      async function ensureProfileRow(userId) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (data) return;
+
+        await supabase.from("profiles").insert({ user_id: userId, display_name: "" });
+      }
+
+      async function loadName() {
+        const { data } = await supabase.auth.getUser();
+        if (!data.user) return;
+
+        await ensureProfileRow(data.user.id);
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+
+        nameEl.value = profile?.display_name || "";
+      }
+
+      function redirectToXmenuWithSession() {
+        supabase.auth.getSession().then(({ data }) => {
+          const s = data.session;
+          if (!s) return;
+
+          const url = new URL("https://xmenu.dev/auth/callback.html");
+          url.hash = new URLSearchParams({
+            access_token: s.access_token,
+            refresh_token: s.refresh_token,
+            returnTo
+          }).toString();
+
+          location.assign(url.toString());
+        });
+      }
+
+      document.getElementById("login").onclick = async () => {
+        setMsg("");
+        const email = emailEl.value.trim();
+        const password = passEl.value;
+
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) { setMsg(error.message); return; }
+
+        await loadName();
+        redirectToXmenuWithSession();
+      };
+
+      document.getElementById("register").onclick = async () => {
+        setMsg("");
+        const email = emailEl.value.trim();
+        const password = passEl.value;
+
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) { setMsg(error.message); return; }
+
+        // If email confirmations are enabled, session can be null.
+        if (!data.session) {
+          setMsg("Check your email to confirm the account, then log in.");
+          return;
+        }
+
+        await loadName();
+        redirectToXmenuWithSession();
+      };
+
+      document.getElementById("saveName").onclick = async () => {
+        setMsg("");
+        const { data } = await supabase.auth.getUser();
+        const user = data.user;
+        if (!user) { setMsg("Not logged in."); return; }
+
+        const display_name = nameEl.value.trim();
+
+        const { error } = await supabase
+          .from("profiles")
+          .upsert({ user_id: user.id, display_name })
+          .eq("user_id", user.id);
+
+        if (error) setMsg(error.message);
+        else setMsg("Saved.");
+      };
+
+      document.getElementById("logout").onclick = async () => {
+        await supabase.auth.signOut();
+        setMsg("Logged out.");
+      };
+
+      document.getElementById("back").onclick = async () => {
+        redirectToXmenuWithSession();
+        location.assign(returnTo);
+      };
+
+      document.getElementById("delete").onclick = async () => {
+        setMsg("");
+        const { data } = await supabase.auth.getSession();
+        const s = data.session;
+        if (!s) { setMsg("Not logged in."); return; }
+
+        const res = await fetch("/api/delete-user", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "authorization": "Bearer " + s.access_token
+          },
+          body: "{}"
+        });
+
+        if (!res.ok) {
+          setMsg(await res.text());
+          return;
+        }
+
+        await supabase.auth.signOut();
+        location.assign(returnTo);
+      };
+
+      // initial
+      await loadName();
+    </script>
+  </body>
+</html>
