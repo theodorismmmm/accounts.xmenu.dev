@@ -173,7 +173,8 @@
       // Input validation helpers
       function isValidEmail(email) {
         // Basic email validation - server will do more thorough validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        // This is for UX to catch obvious typos before making API calls
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
         return emailRegex.test(email);
       }
 
