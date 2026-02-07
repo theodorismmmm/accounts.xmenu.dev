@@ -8,7 +8,7 @@
     <style>
       :root { color-scheme: dark; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background:#0f172a; color:#e2e8f0; }
       body { margin:0; min-height:100vh; display:grid; place-items:center; padding:24px; background: radial-gradient(circle at top, #1e293b, #0f172a 65%); }
-      main { width:min(560px,100%); background:rgba(15,23,42,.88); border:1px solid rgba(148,163,184,.2); border-radius:18px; padding:20px; display:grid; gap:14px; box-shadow: 0 30px 80px rgba(15,23,42,.45); }
+      main { width:min(560px,100%); background:rgba(15,23,42,.88); border:1px solid rgba(148,163,184,.2); border-radius:18px; padding:20px; display:grid; gap:14px; box-shadow: 0 30px 80px rgba(15,23,42,.17); }
       h1 { margin:0; font-size:1.3rem; }
       .msg { color:#94a3b8; min-height:1.2em; }
       input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(148,163,184,.3); background:rgba(15,23,42,.8); color:#e2e8f0; }
@@ -22,13 +22,15 @@
       hr { border:none; border-top:1px solid rgba(148,163,184,.15); }
       .pill { display:inline-block; padding:6px 10px; border-radius:999px; border:1px solid rgba(148,163,184,.25); color:#cbd5e1; font-size:.9rem; }
       .hidden { display:none; }
+      #lang-btn { margin-left: 8px; }
     </style>
   </head>
   <body>
     <main>
       <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-        <h1>Account</h1>
+        <h1 id="ui-account-label">Account</h1>
         <span class="pill" id="returnPill">returnTo: —</span>
+        <button id="lang-btn" type="button" aria-label="Switch language">Deutsch</button>
       </div>
 
       <div class="msg" id="msg"></div>
@@ -47,8 +49,8 @@
 
       <section id="profileSection" class="hidden">
         <hr />
-        <div style="font-weight:800;">Profile</div>
-        <div class="msg">Signed in as: <span id="signedInAs">—</span></div>
+        <div style="font-weight:800;" id="ui-profile-label">Profile</div>
+        <div class="msg" id="ui-signedin-label">Signed in as: <span id="signedInAs">—</span></div>
         <input id="name" type="text" placeholder="Display name (shown on xmenu.dev / rls.xmenu.dev)" maxlength="60" />
         <div style="height:12px"></div>
         <div class="row">
@@ -58,7 +60,7 @@
         </div>
 
         <hr />
-        <div style="font-weight:800;">Danger zone</div>
+        <div style="font-weight:800;" id="ui-danger-label">Danger zone</div>
         <div class="row">
           <button id="delete" type="button">Delete account</button>
         </div>
@@ -68,15 +70,91 @@
     <script type="module">
       import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+      // Language dictionary – add new static UI text here
+      const strings = {
+        en: {
+          account: "Account",
+          returnTo: "returnTo",
+          login: "Login",
+          register: "Register",
+          email: "Email",
+          password: "Password (min 6 chars)",
+          profile: "Profile",
+          signedInAs: "Signed in as:",
+          displayName: "Display name (shown on xmenu.dev / rls.xmenu.dev)",
+          saveName: "Save name",
+          logout: "Logout",
+          back: "Back",
+          dangerZone: "Danger zone",
+          deleteAccount: "Delete account",
+          loggedOut: "Logged out.",
+          saved: "Saved.",
+          checkEmail: "Check your email to confirm the account, then log in.",
+          notLoggedIn: "Not logged in.",
+          noSession: "No session returned."
+        },
+        de: {
+          account: "Konto",
+          returnTo: "zurückZu",
+          login: "Anmelden",
+          register: "Registrieren",
+          email: "E-Mail",
+          password: "Passwort (mind. 6 Zeichen)",
+          profile: "Profil",
+          signedInAs: "Angemeldet als:",
+          displayName: "Anzeigename (erscheint auf xmenu.dev / rls.xmenu.dev)",
+          saveName: "Name speichern",
+          logout: "Abmelden",
+          back: "Zurück",
+          dangerZone: "Gefahrenbereich",
+          deleteAccount: "Konto löschen",
+          loggedOut: "Abgemeldet.",
+          saved: "Gespeichert.",
+          checkEmail: "Prüfe deine E-Mails, um das Konto zu bestätigen, und melde dich dann an.",
+          notLoggedIn: "Nicht angemeldet.",
+          noSession: "Keine Sitzung zurückgegeben."
+        }
+      };
+
+      let lang = localStorage.getItem("lang") || "en";
+      function setLang(newLang) {
+        lang = newLang;
+        localStorage.setItem("lang", lang);
+        updateLang();
+      }
+
+      function updateLang() {
+        const t = strings[lang];
+        document.documentElement.lang = lang;
+        document.getElementById("ui-account-label").textContent = t.account;
+        document.getElementById("returnPill").textContent = `${t.returnTo}: ${returnTo}`;
+        document.getElementById("login").textContent = t.login;
+        document.getElementById("register").textContent = t.register;
+        document.getElementById("email").placeholder = t.email;
+        document.getElementById("password").placeholder = t.password;
+        document.getElementById("ui-profile-label").textContent = t.profile;
+        document.getElementById("ui-signedin-label").childNodes[0].textContent = t.signedInAs + " ";
+        document.getElementById("name").placeholder = t.displayName;
+        document.getElementById("saveName").textContent = t.saveName;
+        document.getElementById("logout").textContent = t.logout;
+        document.getElementById("back").textContent = t.back;
+        document.getElementById("ui-danger-label").textContent = t.dangerZone;
+        document.getElementById("delete").textContent = t.deleteAccount;
+        document.getElementById("lang-btn").textContent = lang === "en" ? "Deutsch" : "English";
+      }
+
+      document.getElementById("lang-btn").addEventListener("click", () => {
+        setLang(lang === "en" ? "de" : "en");
+      });
+
       // Replace with your project values
       const SUPABASE_URL = "https://miivgganhzzqfzebmaxx.supabase.co";
-      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1paXZnZ2FuaHp6cWZ6ZWJtYXh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyOTg0OTYsImV4cCI6MjA4NTg3NDQ5Nn0.WAB1I8f8B46WzgvTqNn_jFiMBUb-63LPtCpCMrAkCoY";
+      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1paXZnZ2FuaHp6cWZ6ZWJtYXh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyOTg0OTYsImV4cCI6MjA4NTg3NDQ5Nn0.WA[...]
 
       const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
       const qs = new URLSearchParams(location.search);
       const returnTo = qs.get("returnTo") || "https://xmenu.dev/";
-      document.getElementById("returnPill").textContent = `returnTo: ${returnTo}`;
 
       const msgEl = document.getElementById("msg");
       const authSection = document.getElementById("authSection");
@@ -153,7 +231,7 @@
 
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) { setMsg(error.message); return; }
-        if (!data.session) { setMsg("No session returned."); return; }
+        if (!data.session) { setMsg(strings[lang].noSession); return; }
 
         await showLoggedIn(data.user);
         redirectToReturnToWithSession(data.session);
@@ -169,7 +247,7 @@
 
         // If email confirmations are enabled, session can be null until confirmed
         if (!data.session) {
-          setMsg("Check your email to confirm the account, then log in.");
+          setMsg(strings[lang].checkEmail);
           return;
         }
 
@@ -181,7 +259,7 @@
         setMsg("");
         const { data } = await supabase.auth.getUser();
         const user = data.user;
-        if (!user) { setMsg("Not logged in."); return; }
+        if (!user) { setMsg(strings[lang].notLoggedIn); return; }
 
         const display_name = nameEl.value.trim();
 
@@ -191,13 +269,13 @@
           .eq("user_id", user.id);
 
         if (error) setMsg(error.message);
-        else setMsg("Saved.");
+        else setMsg(strings[lang].saved);
       });
 
       document.getElementById("logout").addEventListener("click", async () => {
         await supabase.auth.signOut();
         await showLoggedOut();
-        setMsg("Logged out.");
+        setMsg(strings[lang].loggedOut);
       });
 
       document.getElementById("back").addEventListener("click", async () => {
@@ -211,7 +289,7 @@
         setMsg("");
         const { data } = await supabase.auth.getSession();
         const s = data.session;
-        if (!s) { setMsg("Not logged in."); return; }
+        if (!s) { setMsg(strings[lang].notLoggedIn); return; }
 
         const res = await fetch("/api/delete-user", {
           method: "POST",
@@ -232,6 +310,7 @@
       });
 
       // Initial state
+      updateLang();
       const { data } = await supabase.auth.getUser();
       if (data.user) await showLoggedIn(data.user);
       else await showLoggedOut();
