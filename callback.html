@@ -74,6 +74,41 @@
         console.log(`[Callback] ${isError ? 'ERROR:' : 'INFO:'} ${text}`);
       }
 
+      // Whitelist of allowed domains for returnTo URL to prevent open redirect attacks
+      const ALLOWED_RETURN_DOMAINS = [
+        "xmenu.dev",
+        "rls.xmenu.dev",
+        "accounts.xmenu.dev",
+        "localhost" // For development
+      ];
+
+      function isValidReturnToUrl(url) {
+        try {
+          const parsed = new URL(url);
+          // Only allow http/https protocols
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            console.warn("[Security] Invalid protocol in returnTo:", parsed.protocol);
+            return false;
+          }
+          
+          // Check if the domain is in the whitelist
+          const hostname = parsed.hostname;
+          const isAllowed = ALLOWED_RETURN_DOMAINS.some(domain => {
+            return hostname === domain || hostname.endsWith("." + domain);
+          });
+          
+          if (!isAllowed) {
+            console.warn("[Security] Domain not in whitelist:", hostname);
+            return false;
+          }
+          
+          return true;
+        } catch (err) {
+          console.warn("[Security] Invalid URL in returnTo:", err);
+          return false;
+        }
+      }
+
       async function handleCallback() {
         try {
           console.log("[Callback] Starting authentication callback handler");
@@ -103,12 +138,12 @@
           }
 
           // Validate returnTo URL
-          if (!returnTo || !returnTo.startsWith("http")) {
-            setMessage("Invalid return URL. Redirecting to default page...", true);
-            console.error("[Callback] Invalid returnTo URL:", returnTo);
+          if (!returnTo || !isValidReturnToUrl(returnTo)) {
+            setMessage("Invalid or unauthorized return URL.", true);
+            console.error("[Callback] Invalid or unauthorized returnTo URL:", returnTo);
             setTimeout(() => {
-              window.location.assign("https://xmenu.dev/");
-            }, 2000);
+              window.location.assign("https://accounts.xmenu.dev/");
+            }, 3000);
             return;
           }
 
