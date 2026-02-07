@@ -1,3 +1,4 @@
+<!-- accounts.xmenu.dev / index.html -->
 <!doctype html>
 <html lang="en">
   <head>
@@ -15,7 +16,7 @@
       .row { display:flex; gap:10px; flex-wrap:wrap; }
       button {
         padding:12px 14px; border-radius:999px; border:1px solid rgba(148,163,184,.35);
-        background:transparent; color:#e2e8f0; font-weight:700; cursor:pointer;
+        background:transparent; color:#e2e8f0; font-weight:800; cursor:pointer;
       }
       button.primary { background: linear-gradient(135deg, #38bdf8, #0ea5e9); color:#0f172a; border-color: transparent; }
       hr { border:none; border-top:1px solid rgba(148,163,184,.15); }
@@ -48,12 +49,12 @@
         <hr />
         <div style="font-weight:800;">Profile</div>
         <div class="msg">Signed in as: <span id="signedInAs">—</span></div>
-        <input id="name" type="text" placeholder="Display name (shown on xmenu.dev)" maxlength="60" />
+        <input id="name" type="text" placeholder="Display name (shown on xmenu.dev / rls.xmenu.dev)" maxlength="60" />
         <div style="height:12px"></div>
         <div class="row">
           <button class="primary" id="saveName" type="button">Save name</button>
           <button id="logout" type="button">Logout</button>
-          <button id="back" type="button">Back to xmenu.dev</button>
+          <button id="back" type="button">Back</button>
         </div>
 
         <hr />
@@ -67,7 +68,7 @@
     <script type="module">
       import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-      // Your project values
+      // Replace with your project values
       const SUPABASE_URL = "https://miivgganhzzqfzebmaxx.supabase.co";
       const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1paXZnZ2FuaHp6cWZ6ZWJtYXh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyOTg0OTYsImV4cCI6MjA4NTg3NDQ5Nn0.WAB1I8f8B46WzgvTqNn_jFiMBUb-63LPtCpCMrAkCoY";
 
@@ -89,13 +90,13 @@
       const setMsg = (t) => (msgEl.textContent = t || "");
 
       async function ensureProfileRow(userId) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("profiles")
           .select("user_id")
           .eq("user_id", userId)
           .maybeSingle();
 
-        if (data) return;
+        if (!error && data) return;
 
         await supabase.from("profiles").insert({ user_id: userId, display_name: "" });
       }
@@ -103,23 +104,32 @@
       async function loadProfile(user) {
         await ensureProfileRow(user.id);
 
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("profiles")
           .select("display_name")
           .eq("user_id", user.id)
           .maybeSingle();
 
+        if (error) {
+          nameEl.value = "";
+          return;
+        }
+
         nameEl.value = data?.display_name || "";
       }
 
-      function redirectToXmenuWithSession(session) {
-        const url = new URL("https://xmenu.dev/auth/callback.html");
-        url.hash = new URLSearchParams({
+      function redirectToReturnToWithSession(session) {
+        // returnTo can be https://xmenu.dev/ or https://rls.xmenu.dev/ (or any allowed origin)
+        const origin = new URL(returnTo).origin;
+        const callback = new URL("/auth/callback.html", origin);
+
+        callback.hash = new URLSearchParams({
           access_token: session.access_token,
           refresh_token: session.refresh_token,
           returnTo
         }).toString();
-        location.assign(url.toString());
+
+        location.assign(callback.toString());
       }
 
       async function showLoggedOut() {
@@ -146,7 +156,7 @@
         if (!data.session) { setMsg("No session returned."); return; }
 
         await showLoggedIn(data.user);
-        redirectToXmenuWithSession(data.session);
+        redirectToReturnToWithSession(data.session);
       });
 
       document.getElementById("register").addEventListener("click", async () => {
@@ -159,12 +169,12 @@
 
         // If email confirmations are enabled, session can be null until confirmed
         if (!data.session) {
-          setMsg("Check your email to confirm, then come back and login.");
+          setMsg("Check your email to confirm the account, then log in.");
           return;
         }
 
         await showLoggedIn(data.user);
-        redirectToXmenuWithSession(data.session);
+        redirectToReturnToWithSession(data.session);
       });
 
       document.getElementById("saveName").addEventListener("click", async () => {
@@ -174,6 +184,7 @@
         if (!user) { setMsg("Not logged in."); return; }
 
         const display_name = nameEl.value.trim();
+
         const { error } = await supabase
           .from("profiles")
           .upsert({ user_id: user.id, display_name })
@@ -191,10 +202,11 @@
 
       document.getElementById("back").addEventListener("click", async () => {
         const { data } = await supabase.auth.getSession();
-        if (data.session) redirectToXmenuWithSession(data.session);
+        if (data.session) redirectToReturnToWithSession(data.session);
         else location.assign(returnTo);
       });
 
+      // Requires /api/delete-user on accounts.xmenu.dev (Vercel serverless)
       document.getElementById("delete").addEventListener("click", async () => {
         setMsg("");
         const { data } = await supabase.auth.getSession();
