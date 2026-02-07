@@ -1,0 +1,168 @@
+<!-- callback.html - OAuth callback handler for accounts.xmenu.dev -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Authentication - XMenu</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: radial-gradient(circle at top, #1e293b, #0f172a 65%);
+      }
+      main {
+        width: min(560px, 100%);
+        background: rgba(15, 23, 42, 0.88);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 18px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 30px 80px rgba(15, 23, 42, 0.17);
+      }
+      .spinner {
+        border: 3px solid rgba(148, 163, 184, 0.3);
+        border-top: 3px solid #38bdf8;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .error {
+        color: #f87171;
+        margin-top: 12px;
+      }
+      .success {
+        color: #4ade80;
+        margin-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Authenticating...</h1>
+      <div class="spinner"></div>
+      <div id="message"></div>
+    </main>
+
+    <script type="module">
+      import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+      // Configuration - must match index.html
+      const SUPABASE_URL = "https://miivgganhzzqfzebmaxx.supabase.co";
+      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1paXZnZ2FuaHp6cWZ6ZWJtYXh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyOTg0OTYsImV4cCI6MjA4NTg3NDQ5Nn0.WA[...]";
+
+      const messageEl = document.getElementById("message");
+
+      function setMessage(text, isError = false) {
+        messageEl.textContent = text;
+        messageEl.className = isError ? "error" : "success";
+        console.log(`[Callback] ${isError ? 'ERROR:' : 'INFO:'} ${text}`);
+      }
+
+      async function handleCallback() {
+        try {
+          console.log("[Callback] Starting authentication callback handler");
+          
+          // Extract parameters from URL hash
+          const hashParams = new URLSearchParams(location.hash.slice(1));
+          const accessToken = hashParams.get("access_token");
+          const refreshToken = hashParams.get("refresh_token");
+          const returnTo = hashParams.get("returnTo");
+
+          console.log("[Callback] Hash parameters parsed:", {
+            hasAccessToken: !!accessToken,
+            hasRefreshToken: !!refreshToken,
+            returnTo
+          });
+
+          // Validate required parameters
+          if (!accessToken || !refreshToken) {
+            setMessage("Missing authentication tokens. Please try logging in again.", true);
+            console.error("[Callback] Missing tokens in URL hash");
+            
+            // Redirect to accounts page after delay
+            setTimeout(() => {
+              window.location.assign("https://accounts.xmenu.dev/");
+            }, 3000);
+            return;
+          }
+
+          // Validate returnTo URL
+          if (!returnTo || !returnTo.startsWith("http")) {
+            setMessage("Invalid return URL. Redirecting to default page...", true);
+            console.error("[Callback] Invalid returnTo URL:", returnTo);
+            setTimeout(() => {
+              window.location.assign("https://xmenu.dev/");
+            }, 2000);
+            return;
+          }
+
+          // Initialize Supabase client
+          const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+          // Set the session with the tokens
+          console.log("[Callback] Setting Supabase session...");
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+
+          if (error) {
+            console.error("[Callback] Error setting session:", error);
+            setMessage(`Authentication failed: ${error.message}`, true);
+            setTimeout(() => {
+              window.location.assign("https://accounts.xmenu.dev/");
+            }, 3000);
+            return;
+          }
+
+          if (!data.session) {
+            console.error("[Callback] No session returned after setSession");
+            setMessage("Failed to establish session. Please try again.", true);
+            setTimeout(() => {
+              window.location.assign("https://accounts.xmenu.dev/");
+            }, 3000);
+            return;
+          }
+
+          console.log("[Callback] Session established successfully for user:", data.user?.email);
+          setMessage("Authentication successful! Redirecting...", false);
+
+          // Clear the hash to avoid reprocessing
+          history.replaceState(null, "", location.pathname + location.search);
+
+          // Redirect to the original destination
+          setTimeout(() => {
+            console.log("[Callback] Redirecting to:", returnTo);
+            window.location.assign(returnTo);
+          }, 1000);
+
+        } catch (err) {
+          console.error("[Callback] Unexpected error:", err);
+          setMessage(`An unexpected error occurred: ${err.message}`, true);
+          setTimeout(() => {
+            window.location.assign("https://accounts.xmenu.dev/");
+          }, 3000);
+        }
+      }
+
+      // Start the callback handler
+      handleCallback();
+    </script>
+  </body>
+</html>

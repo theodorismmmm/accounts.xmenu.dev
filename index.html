@@ -165,49 +165,135 @@
       const nameEl = document.getElementById("name");
       const signedInAsEl = document.getElementById("signedInAs");
 
-      const setMsg = (t) => (msgEl.textContent = t || "");
+      const setMsg = (t) => {
+        msgEl.textContent = t || "";
+        if (t) console.log("[UI] Message:", t);
+      };
+
+      // Input validation helpers
+      function isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+      }
+
+      function isValidPassword(password) {
+        return password && password.length >= 6;
+      }
+
+      function validateInputs(email, password) {
+        if (!email || !email.trim()) {
+          setMsg("Please enter an email address");
+          return false;
+        }
+        if (!isValidEmail(email)) {
+          setMsg("Please enter a valid email address");
+          return false;
+        }
+        if (!password) {
+          setMsg("Please enter a password");
+          return false;
+        }
+        if (!isValidPassword(password)) {
+          setMsg("Password must be at least 6 characters");
+          return false;
+        }
+        return true;
+      }
+
+      function isValidReturnToUrl(url) {
+        try {
+          const parsed = new URL(url);
+          // Only allow http/https protocols
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            return false;
+          }
+          return true;
+        } catch {
+          return false;
+        }
+      }
 
       async function ensureProfileRow(userId) {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("user_id")
-          .eq("user_id", userId)
-          .maybeSingle();
+        try {
+          console.log("[Profile] Checking profile for user:", userId);
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("user_id")
+            .eq("user_id", userId)
+            .maybeSingle();
 
-        if (!error && data) return;
+          if (!error && data) {
+            console.log("[Profile] Profile already exists");
+            return;
+          }
 
-        await supabase.from("profiles").insert({ user_id: userId, display_name: "" });
+          console.log("[Profile] Creating new profile row");
+          const { error: insertError } = await supabase
+            .from("profiles")
+            .insert({ user_id: userId, display_name: "" });
+          
+          if (insertError) {
+            console.error("[Profile] Error creating profile:", insertError);
+          }
+        } catch (err) {
+          console.error("[Profile] Unexpected error in ensureProfileRow:", err);
+        }
       }
 
       async function loadProfile(user) {
-        await ensureProfileRow(user.id);
+        try {
+          await ensureProfileRow(user.id);
 
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("display_name")
-          .eq("user_id", user.id)
-          .maybeSingle();
+          console.log("[Profile] Loading profile for user:", user.email);
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("display_name")
+            .eq("user_id", user.id)
+            .maybeSingle();
 
-        if (error) {
+          if (error) {
+            console.error("[Profile] Error loading profile:", error);
+            nameEl.value = "";
+            return;
+          }
+
+          nameEl.value = data?.display_name || "";
+          console.log("[Profile] Profile loaded successfully");
+        } catch (err) {
+          console.error("[Profile] Unexpected error loading profile:", err);
           nameEl.value = "";
-          return;
         }
-
-        nameEl.value = data?.display_name || "";
       }
 
       function redirectToReturnToWithSession(session) {
-        // returnTo can be https://xmenu.dev/ or https://rls.xmenu.dev/ (or any allowed origin)
-        const origin = new URL(returnTo).origin;
-        const callback = new URL("/auth/callback.html", origin);
+        try {
+          console.log("[Redirect] Preparing redirect to:", returnTo);
+          
+          // Validate returnTo URL
+          if (!isValidReturnToUrl(returnTo)) {
+            console.error("[Redirect] Invalid returnTo URL:", returnTo);
+            setMsg("Invalid return URL. Cannot redirect.");
+            return;
+          }
 
-        callback.hash = new URLSearchParams({
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
-          returnTo
-        }).toString();
+          // returnTo can be https://xmenu.dev/ or https://rls.xmenu.dev/ (or any allowed origin)
+          const origin = new URL(returnTo).origin;
+          const callback = new URL("/auth/callback.html", origin);
 
-        location.assign(callback.toString());
+          console.log("[Redirect] Target callback URL:", callback.toString());
+
+          callback.hash = new URLSearchParams({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            returnTo
+          }).toString();
+
+          console.log("[Redirect] Redirecting with session tokens");
+          location.assign(callback.toString());
+        } catch (err) {
+          console.error("[Redirect] Error during redirect:", err);
+          setMsg("Failed to redirect. Error: " + err.message);
+        }
       }
 
       async function showLoggedOut() {
@@ -225,95 +311,243 @@
       }
 
       document.getElementById("login").addEventListener("click", async () => {
-        setMsg("");
-        const email = emailEl.value.trim();
-        const password = passwordEl.value;
+        try {
+          setMsg("");
+          const email = emailEl.value.trim();
+          const password = passwordEl.value;
 
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) { setMsg(error.message); return; }
-        if (!data.session) { setMsg(strings[lang].noSession); return; }
+          console.log("[Auth] Login attempt for:", email);
 
-        await showLoggedIn(data.user);
-        redirectToReturnToWithSession(data.session);
+          // Validate inputs
+          if (!validateInputs(email, password)) {
+            return;
+          }
+
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+          
+          if (error) {
+            console.error("[Auth] Login error:", error);
+            setMsg(error.message);
+            return;
+          }
+          
+          if (!data.session) {
+            console.error("[Auth] Login succeeded but no session returned");
+            setMsg(strings[lang].noSession);
+            return;
+          }
+
+          console.log("[Auth] Login successful for:", data.user.email);
+          await showLoggedIn(data.user);
+          redirectToReturnToWithSession(data.session);
+        } catch (err) {
+          console.error("[Auth] Unexpected error during login:", err);
+          setMsg("Login failed: " + err.message);
+        }
       });
 
       document.getElementById("register").addEventListener("click", async () => {
-        setMsg("");
-        const email = emailEl.value.trim();
-        const password = passwordEl.value;
+        try {
+          setMsg("");
+          const email = emailEl.value.trim();
+          const password = passwordEl.value;
 
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) { setMsg(error.message); return; }
+          console.log("[Auth] Registration attempt for:", email);
 
-        // If email confirmations are enabled, session can be null until confirmed
-        if (!data.session) {
-          setMsg(strings[lang].checkEmail);
-          return;
+          // Validate inputs
+          if (!validateInputs(email, password)) {
+            return;
+          }
+
+          const { data, error } = await supabase.auth.signUp({ email, password });
+          
+          if (error) {
+            console.error("[Auth] Registration error:", error);
+            setMsg(error.message);
+            return;
+          }
+
+          // If email confirmations are enabled, session can be null until confirmed
+          if (!data.session) {
+            console.log("[Auth] Registration successful, awaiting email confirmation");
+            setMsg(strings[lang].checkEmail);
+            return;
+          }
+
+          console.log("[Auth] Registration successful with immediate session for:", data.user.email);
+          await showLoggedIn(data.user);
+          redirectToReturnToWithSession(data.session);
+        } catch (err) {
+          console.error("[Auth] Unexpected error during registration:", err);
+          setMsg("Registration failed: " + err.message);
         }
-
-        await showLoggedIn(data.user);
-        redirectToReturnToWithSession(data.session);
       });
 
       document.getElementById("saveName").addEventListener("click", async () => {
-        setMsg("");
-        const { data } = await supabase.auth.getUser();
-        const user = data.user;
-        if (!user) { setMsg(strings[lang].notLoggedIn); return; }
+        try {
+          setMsg("");
+          console.log("[Profile] Attempting to save display name");
+          
+          const { data } = await supabase.auth.getUser();
+          const user = data.user;
+          
+          if (!user) {
+            console.error("[Profile] No user found when saving name");
+            setMsg(strings[lang].notLoggedIn);
+            return;
+          }
 
-        const display_name = nameEl.value.trim();
+          const display_name = nameEl.value.trim();
+          console.log("[Profile] Saving display name for user:", user.email);
 
-        const { error } = await supabase
-          .from("profiles")
-          .upsert({ user_id: user.id, display_name })
-          .eq("user_id", user.id);
+          const { error } = await supabase
+            .from("profiles")
+            .upsert({ user_id: user.id, display_name })
+            .eq("user_id", user.id);
 
-        if (error) setMsg(error.message);
-        else setMsg(strings[lang].saved);
+          if (error) {
+            console.error("[Profile] Error saving display name:", error);
+            setMsg(error.message);
+          } else {
+            console.log("[Profile] Display name saved successfully");
+            setMsg(strings[lang].saved);
+          }
+        } catch (err) {
+          console.error("[Profile] Unexpected error saving name:", err);
+          setMsg("Failed to save name: " + err.message);
+        }
       });
 
       document.getElementById("logout").addEventListener("click", async () => {
-        await supabase.auth.signOut();
-        await showLoggedOut();
-        setMsg(strings[lang].loggedOut);
+        try {
+          console.log("[Auth] Logging out");
+          await supabase.auth.signOut();
+          await showLoggedOut();
+          setMsg(strings[lang].loggedOut);
+          console.log("[Auth] Logout successful");
+        } catch (err) {
+          console.error("[Auth] Error during logout:", err);
+          setMsg("Logout failed: " + err.message);
+        }
       });
 
       document.getElementById("back").addEventListener("click", async () => {
-        const { data } = await supabase.auth.getSession();
-        if (data.session) redirectToReturnToWithSession(data.session);
-        else location.assign(returnTo);
+        try {
+          console.log("[Navigation] Back button clicked");
+          const { data } = await supabase.auth.getSession();
+          
+          if (data.session) {
+            console.log("[Navigation] Session exists, redirecting with session");
+            redirectToReturnToWithSession(data.session);
+          } else {
+            console.log("[Navigation] No session, redirecting without session");
+            if (isValidReturnToUrl(returnTo)) {
+              location.assign(returnTo);
+            } else {
+              console.error("[Navigation] Invalid returnTo URL");
+              setMsg("Invalid return URL");
+            }
+          }
+        } catch (err) {
+          console.error("[Navigation] Error in back handler:", err);
+          setMsg("Navigation failed: " + err.message);
+        }
       });
 
       // Requires /api/delete-user on accounts.xmenu.dev (Vercel serverless)
       document.getElementById("delete").addEventListener("click", async () => {
-        setMsg("");
-        const { data } = await supabase.auth.getSession();
-        const s = data.session;
-        if (!s) { setMsg(strings[lang].notLoggedIn); return; }
+        try {
+          setMsg("");
+          console.log("[Account] Delete account requested");
+          
+          const { data } = await supabase.auth.getSession();
+          const s = data.session;
+          
+          if (!s) {
+            console.error("[Account] No session found for delete");
+            setMsg(strings[lang].notLoggedIn);
+            return;
+          }
 
-        const res = await fetch("/api/delete-user", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "authorization": "Bearer " + s.access_token
-          },
-          body: "{}"
-        });
+          console.log("[Account] Calling delete-user API");
+          const res = await fetch("/api/delete-user", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "authorization": "Bearer " + s.access_token
+            },
+            body: "{}"
+          });
 
-        if (!res.ok) {
-          setMsg(await res.text());
-          return;
+          if (!res.ok) {
+            const errorText = await res.text();
+            console.error("[Account] Delete failed:", errorText);
+            setMsg(errorText);
+            return;
+          }
+
+          console.log("[Account] Account deleted successfully");
+          await supabase.auth.signOut();
+          location.assign(returnTo);
+        } catch (err) {
+          console.error("[Account] Error deleting account:", err);
+          setMsg("Failed to delete account: " + err.message);
         }
-
-        await supabase.auth.signOut();
-        location.assign(returnTo);
       });
 
       // Initial state
+      console.log("[Init] Initializing accounts page");
+      console.log("[Init] ReturnTo URL:", returnTo);
+      
+      // Validate returnTo URL
+      if (!isValidReturnToUrl(returnTo)) {
+        console.warn("[Init] Invalid returnTo URL, using default");
+        setMsg("Warning: Invalid return URL provided");
+      }
+      
       updateLang();
-      const { data } = await supabase.auth.getUser();
-      if (data.user) await showLoggedIn(data.user);
-      else await showLoggedOut();
+      
+      try {
+        // Check if we're coming back from an OAuth flow (hash parameters)
+        const hashParams = new URLSearchParams(location.hash.slice(1));
+        if (hashParams.has("access_token")) {
+          console.log("[Init] Found OAuth tokens in hash, processing...");
+          const accessToken = hashParams.get("access_token");
+          const refreshToken = hashParams.get("refresh_token");
+          
+          if (accessToken && refreshToken) {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            });
+            
+            if (error) {
+              console.error("[Init] Error setting session from hash:", error);
+              setMsg("Failed to restore session: " + error.message);
+            } else if (data.session) {
+              console.log("[Init] Session restored from hash");
+              // Clear the hash
+              history.replaceState(null, "", location.pathname + location.search);
+            }
+          }
+        }
+        
+        // Check current session
+        console.log("[Init] Checking for existing session");
+        const { data } = await supabase.auth.getUser();
+        
+        if (data.user) {
+          console.log("[Init] User is logged in:", data.user.email);
+          await showLoggedIn(data.user);
+        } else {
+          console.log("[Init] No active session");
+          await showLoggedOut();
+        }
+      } catch (err) {
+        console.error("[Init] Error during initialization:", err);
+        setMsg("Initialization error: " + err.message);
+        await showLoggedOut();
+      }
     </script>
   </body>
 </html>
