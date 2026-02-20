@@ -1,74 +1,431 @@
 <!-- accounts.xmenu.dev / index.html -->
 <!doctype html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>XMenu Accounts</title>
+    <title>XMenu Konto</title>
     <style>
-      :root { color-scheme: dark; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background:#0f172a; color:#e2e8f0; }
-      body { margin:0; min-height:100vh; display:grid; place-items:center; padding:24px; background: radial-gradient(circle at top, #1e293b, #0f172a 65%); }
-      main { width:min(560px,100%); background:rgba(15,23,42,.88); border:1px solid rgba(148,163,184,.2); border-radius:18px; padding:20px; display:grid; gap:14px; box-shadow: 0 30px 80px rgba(15,23,42,.45); }
-      h1 { margin:0; font-size:1.3rem; }
-      .msg { color:#94a3b8; min-height:1.2em; }
-      input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(148,163,184,.3); background:rgba(15,23,42,.8); color:#e2e8f0; }
-      input:focus { outline:none; border-color:#38bdf8; box-shadow:0 0 0 3px rgba(56,189,248,.12); }
-      .row { display:flex; gap:10px; flex-wrap:wrap; }
-      button {
-        padding:12px 14px; border-radius:999px; border:1px solid rgba(148,163,184,.35);
-        background:transparent; color:#e2e8f0; font-weight:800; cursor:pointer;
+      :root {
+        color-scheme: dark;
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+        --bg: #0b1120;
+        --surface: rgba(15,23,42,.92);
+        --border: rgba(148,163,184,.18);
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+        --accent2: #0ea5e9;
+        --danger: #f87171;
+        --success: #4ade80;
+        background: var(--bg);
+        color: var(--text);
       }
-      button.primary { background: linear-gradient(135deg, #38bdf8, #0ea5e9); color:#0f172a; border-color: transparent; }
-      hr { border:none; border-top:1px solid rgba(148,163,184,.15); }
-      .pill { display:inline-block; padding:6px 10px; border-radius:999px; border:1px solid rgba(148,163,184,.25); color:#cbd5e1; font-size:.9rem; }
-      .hidden { display:none; }
+      *, *::before, *::after { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background:
+          radial-gradient(ellipse 80% 60% at 50% -10%, rgba(56,189,248,.12), transparent),
+          radial-gradient(ellipse 60% 40% at 90% 80%, rgba(14,165,233,.08), transparent),
+          var(--bg);
+      }
+      main {
+        width: min(520px, 100%);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        padding: 32px 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        box-shadow: 0 40px 100px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04) inset;
+        backdrop-filter: blur(20px);
+      }
+
+      /* ── Logo / header ── */
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 28px;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .logo-icon {
+        width: 36px; height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        display: grid;
+        place-items: center;
+        font-size: 1.1rem;
+        font-weight: 900;
+        color: #0b1120;
+        flex-shrink: 0;
+      }
+      .logo-name { font-size: 1.1rem; font-weight: 800; letter-spacing: -.02em; }
+      .logo-name span { color: var(--accent); }
+      .pill {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        font-size: .78rem;
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* ── Step indicator ── */
+      .steps {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        margin-bottom: 28px;
+      }
+      .step-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+      }
+      .step-item:last-child { flex: 0; }
+      .step-dot {
+        width: 28px; height: 28px;
+        border-radius: 50%;
+        border: 2px solid var(--border);
+        display: grid;
+        place-items: center;
+        font-size: .78rem;
+        font-weight: 700;
+        color: var(--muted);
+        flex-shrink: 0;
+        transition: all .3s;
+      }
+      .step-dot.active {
+        border-color: var(--accent);
+        background: rgba(56,189,248,.15);
+        color: var(--accent);
+      }
+      .step-dot.done {
+        border-color: var(--success);
+        background: rgba(74,222,128,.15);
+        color: var(--success);
+      }
+      .step-line {
+        flex: 1;
+        height: 2px;
+        background: var(--border);
+        border-radius: 2px;
+        margin: 0 4px;
+        transition: background .3s;
+      }
+      .step-line.done { background: var(--success); }
+      .step-label {
+        font-size: .72rem;
+        color: var(--muted);
+        text-align: center;
+        margin-top: 4px;
+        white-space: nowrap;
+      }
+      .steps-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 24px;
+      }
+      .steps-labels {
+        display: flex;
+      }
+      .step-label-item {
+        flex: 1;
+        font-size: .7rem;
+        color: var(--muted);
+        text-align: center;
+        transition: color .3s;
+      }
+      .step-label-item:last-child { flex: 0; min-width: 28px; }
+      .step-label-item.active { color: var(--accent); }
+      .step-label-item.done { color: var(--success); }
+
+      /* ── Panels ── */
+      .panel { display: none; flex-direction: column; gap: 16px; animation: fadeIn .25s ease; }
+      .panel.active { display: flex; }
+      @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+      .panel-title { font-size: 1.25rem; font-weight: 800; letter-spacing: -.02em; margin: 0 0 4px; }
+      .panel-subtitle { font-size: .9rem; color: var(--muted); margin: 0; line-height: 1.5; }
+
+      /* ── Choice buttons (Step 1) ── */
+      .choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .choice-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 20px 14px;
+        border-radius: 16px;
+        border: 2px solid var(--border);
+        background: rgba(255,255,255,.03);
+        color: var(--text);
+        font-size: .95rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: border-color .2s, background .2s, transform .15s;
+      }
+      .choice-btn:hover {
+        border-color: var(--accent);
+        background: rgba(56,189,248,.07);
+        transform: translateY(-2px);
+      }
+      .choice-icon { font-size: 1.8rem; }
+
+      /* ── Inputs ── */
+      .field { display: flex; flex-direction: column; gap: 6px; }
+      .field label { font-size: .82rem; font-weight: 600; color: var(--muted); letter-spacing: .03em; text-transform: uppercase; }
+      .field-hint { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+      input {
+        width: 100%;
+        padding: 13px 16px;
+        border-radius: 12px;
+        border: 1.5px solid var(--border);
+        background: rgba(15,23,42,.7);
+        color: var(--text);
+        font-size: .95rem;
+        transition: border-color .2s, box-shadow .2s;
+      }
+      input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(56,189,248,.12);
+      }
+      input::placeholder { color: rgba(148,163,184,.5); }
+
+      /* ── Buttons ── */
+      .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+      button {
+        padding: 12px 20px;
+        border-radius: 999px;
+        border: 1.5px solid var(--border);
+        background: transparent;
+        color: var(--text);
+        font-weight: 700;
+        font-size: .9rem;
+        cursor: pointer;
+        transition: background .2s, border-color .2s, transform .15s;
+        white-space: nowrap;
+      }
+      button:hover { background: rgba(255,255,255,.06); transform: translateY(-1px); }
+      button:active { transform: translateY(0); }
+      button.primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #0b1120;
+        border-color: transparent;
+        box-shadow: 0 4px 20px rgba(56,189,248,.25);
+      }
+      button.primary:hover { box-shadow: 0 6px 28px rgba(56,189,248,.38); background: linear-gradient(135deg, #52c8fa, var(--accent)); }
+      button.ghost { border-color: transparent; color: var(--muted); padding-left: 8px; padding-right: 8px; }
+      button.ghost:hover { color: var(--text); background: rgba(255,255,255,.05); }
+      button.danger { border-color: rgba(248,113,113,.35); color: var(--danger); }
+      button.danger:hover { background: rgba(248,113,113,.08); }
+
+      /* ── Message ── */
+      .msg {
+        min-height: 1.4em;
+        font-size: .88rem;
+        color: var(--muted);
+        padding: 8px 12px;
+        border-radius: 10px;
+        background: transparent;
+        transition: background .2s, color .2s;
+      }
+      .msg.error { background: rgba(248,113,113,.1); color: var(--danger); border: 1px solid rgba(248,113,113,.2); }
+      .msg.success { background: rgba(74,222,128,.1); color: var(--success); border: 1px solid rgba(74,222,128,.2); }
+      .msg:empty { background: transparent; border-color: transparent; }
+
+      /* ── Tutorial tip ── */
+      .tip {
+        display: flex;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: rgba(56,189,248,.07);
+        border: 1px solid rgba(56,189,248,.18);
+        font-size: .82rem;
+        color: #7dd3fc;
+        line-height: 1.5;
+      }
+      .tip-icon { flex-shrink: 0; font-size: 1rem; }
+
+      /* ── Profile info ── */
+      .info-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: rgba(255,255,255,.04);
+        border: 1px solid var(--border);
+        font-size: .88rem;
+      }
+      .info-row .icon { font-size: 1.1rem; }
+      .info-row .label { color: var(--muted); font-size: .78rem; margin-bottom: 1px; }
+      .info-row .value { font-weight: 600; }
+
+      hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+      .section-title { font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+      .hidden { display: none !important; }
     </style>
   </head>
   <body>
     <main>
-      <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-        <h1>Account</h1>
+      <!-- Header -->
+      <div class="header">
+        <div class="logo">
+          <div class="logo-icon">X</div>
+          <div class="logo-name">x<span>menu</span>.dev</div>
+        </div>
         <span class="pill" id="returnPill">returnTo: —</span>
       </div>
 
+      <!-- Step indicator -->
+      <div class="steps-wrapper">
+        <div class="steps" id="stepsBar">
+          <div class="step-item">
+            <div class="step-dot active" id="dot1">1</div>
+            <div class="step-line" id="line1"></div>
+          </div>
+          <div class="step-item">
+            <div class="step-dot" id="dot2">2</div>
+            <div class="step-line" id="line2"></div>
+          </div>
+          <div class="step-item">
+            <div class="step-dot" id="dot3">3</div>
+          </div>
+        </div>
+        <div class="steps-labels">
+          <div class="step-label-item active" id="lbl1">Auswahl</div>
+          <div class="step-label-item" id="lbl2">Zugangsdaten</div>
+          <div class="step-label-item" id="lbl3">Profil</div>
+        </div>
+      </div>
+
+      <!-- Message -->
       <div class="msg" id="msg"></div>
 
-      <section id="authSection">
-        <input id="email" type="email" placeholder="Email" autocomplete="email" />
-        <div style="height:10px"></div>
-        <input id="password" type="password" placeholder="Password (min 6 chars)" autocomplete="current-password" />
-
-        <div style="height:12px"></div>
-        <div class="row">
-          <button class="primary" id="login" type="button">Login</button>
-          <button id="register" type="button">Register</button>
+      <!-- ── Step 1: Choose ── -->
+      <div class="panel active" id="stepChoose">
+        <div>
+          <p class="panel-title">Willkommen 👋</p>
+          <p class="panel-subtitle">Wähle eine Option, um fortzufahren.</p>
         </div>
-      </section>
+        <div class="tip">
+          <span class="tip-icon">💡</span>
+          <span><strong>Neu hier?</strong> Erstelle ein kostenloses Konto in wenigen Sekunden. Hast du bereits ein Konto? Dann melde dich einfach an.</span>
+        </div>
+        <div class="choice-grid">
+          <button class="choice-btn" id="chooseLogin" type="button">
+            <span class="choice-icon">🔑</span>
+            <span>Anmelden</span>
+          </button>
+          <button class="choice-btn" id="chooseRegister" type="button">
+            <span class="choice-icon">✨</span>
+            <span>Registrieren</span>
+          </button>
+        </div>
+      </div>
 
-      <section id="profileSection" class="hidden">
+      <!-- ── Step 2a: Login form ── -->
+      <div class="panel" id="stepLogin">
+        <div>
+          <p class="panel-title">🔑 Anmelden</p>
+          <p class="panel-subtitle">Gib deine E-Mail-Adresse und dein Passwort ein.</p>
+        </div>
+        <div class="tip">
+          <span class="tip-icon">📌</span>
+          <span>Dein Konto wurde mit dieser E-Mail-Adresse erstellt. Das Passwort muss mindestens 6 Zeichen lang sein.</span>
+        </div>
+        <div class="field">
+          <label>E-Mail-Adresse</label>
+          <input id="loginEmail" type="email" placeholder="name@beispiel.de" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label>Passwort</label>
+          <input id="loginPassword" type="password" placeholder="Mindestens 6 Zeichen" autocomplete="current-password" />
+        </div>
+        <div class="btn-row">
+          <button class="primary" id="loginBtn" type="button">Anmelden →</button>
+          <button class="ghost" id="backFromLogin" type="button">← Zurück</button>
+        </div>
+      </div>
+
+      <!-- ── Step 2b: Register form ── -->
+      <div class="panel" id="stepRegister">
+        <div>
+          <p class="panel-title">✨ Konto erstellen</p>
+          <p class="panel-subtitle">Registriere dich kostenlos bei XMenu.</p>
+        </div>
+        <div class="tip">
+          <span class="tip-icon">📌</span>
+          <span>Wähle eine gültige E-Mail-Adresse. Du erhältst möglicherweise eine Bestätigungs-E-Mail. Das Passwort muss mindestens 6 Zeichen lang sein.</span>
+        </div>
+        <div class="field">
+          <label>E-Mail-Adresse</label>
+          <input id="regEmail" type="email" placeholder="name@beispiel.de" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label>Passwort</label>
+          <input id="regPassword" type="password" placeholder="Mindestens 6 Zeichen" autocomplete="new-password" />
+          <span class="field-hint">Tipp: Verwende mindestens 6 Zeichen, Zahlen und Sonderzeichen.</span>
+        </div>
+        <div class="btn-row">
+          <button class="primary" id="registerBtn" type="button">Registrieren →</button>
+          <button class="ghost" id="backFromRegister" type="button">← Zurück</button>
+        </div>
+      </div>
+
+      <!-- ── Step 3: Profile ── -->
+      <div class="panel" id="stepProfile">
+        <div>
+          <p class="panel-title">🎉 Angemeldet!</p>
+          <p class="panel-subtitle">Dein Konto ist aktiv. Hier kannst du dein Profil verwalten.</p>
+        </div>
+        <div class="info-row">
+          <span class="icon">📧</span>
+          <div>
+            <div class="label">Angemeldet als</div>
+            <div class="value" id="signedInAs">—</div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="name">Anzeigename</label>
+          <input id="name" type="text" placeholder="Wird auf xmenu.dev / rls.xmenu.dev angezeigt" maxlength="60" />
+          <span class="field-hint">Dieser Name ist für andere Nutzer sichtbar.</span>
+        </div>
+        <div class="btn-row">
+          <button class="primary" id="saveName" type="button">Speichern</button>
+          <button id="back" type="button">Zurück zur App</button>
+          <button id="logout" type="button">Abmelden</button>
+        </div>
         <hr />
-        <div style="font-weight:800;">Profile</div>
-        <div class="msg">Signed in as: <span id="signedInAs">—</span></div>
-        <input id="name" type="text" placeholder="Display name (shown on xmenu.dev / rls.xmenu.dev)" maxlength="60" />
-        <div style="height:12px"></div>
-        <div class="row">
-          <button class="primary" id="saveName" type="button">Save name</button>
-          <button id="logout" type="button">Logout</button>
-          <button id="back" type="button">Back</button>
+        <div class="section-title">Gefahrenzone</div>
+        <div class="btn-row">
+          <button class="danger" id="delete" type="button">Konto löschen</button>
         </div>
-
-        <hr />
-        <div style="font-weight:800;">Danger zone</div>
-        <div class="row">
-          <button id="delete" type="button">Delete account</button>
-        </div>
-      </section>
+      </div>
     </main>
 
     <script type="module">
       import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-      // Replace with your project values
       const SUPABASE_URL = "https://miivgganhzzqfzebmaxx.supabase.co";
       const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1paXZnZ2FuaHp6cWZ6ZWJtYXh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyOTg0OTYsImV4cCI6MjA4NTg3NDQ5Nn0.WAB1I8f8B46WzgvTqNn_jFiMBUb-63LPtCpCMrAkCoY";
 
@@ -79,15 +436,49 @@
       document.getElementById("returnPill").textContent = `returnTo: ${returnTo}`;
 
       const msgEl = document.getElementById("msg");
-      const authSection = document.getElementById("authSection");
-      const profileSection = document.getElementById("profileSection");
-
-      const emailEl = document.getElementById("email");
-      const passwordEl = document.getElementById("password");
       const nameEl = document.getElementById("name");
       const signedInAsEl = document.getElementById("signedInAs");
 
-      const setMsg = (t) => (msgEl.textContent = t || "");
+      // Panels
+      const panels = {
+        choose: document.getElementById("stepChoose"),
+        login: document.getElementById("stepLogin"),
+        register: document.getElementById("stepRegister"),
+        profile: document.getElementById("stepProfile"),
+      };
+
+      // Step indicator elements
+      const dots = [document.getElementById("dot1"), document.getElementById("dot2"), document.getElementById("dot3")];
+      const lines = [document.getElementById("line1"), document.getElementById("line2")];
+      const lbls = [document.getElementById("lbl1"), document.getElementById("lbl2"), document.getElementById("lbl3")];
+
+      function setStep(n) {
+        dots.forEach((d, i) => {
+          d.classList.toggle("active", i === n - 1);
+          d.classList.toggle("done", i < n - 1);
+          if (i < n - 1) d.textContent = "✓";
+          else d.textContent = String(i + 1);
+        });
+        lines.forEach((l, i) => l.classList.toggle("done", i < n - 1));
+        lbls.forEach((l, i) => {
+          l.classList.toggle("active", i === n - 1);
+          l.classList.toggle("done", i < n - 1);
+        });
+      }
+
+      function showPanel(name) {
+        Object.values(panels).forEach(p => p.classList.remove("active"));
+        panels[name].classList.add("active");
+        if (name === "choose") setStep(1);
+        else if (name === "login" || name === "register") setStep(2);
+        else if (name === "profile") setStep(3);
+        setMsg("");
+      }
+
+      function setMsg(t, type) {
+        msgEl.textContent = t || "";
+        msgEl.className = "msg" + (type ? " " + type : "");
+      }
 
       async function ensureProfileRow(userId) {
         const { data, error } = await supabase
@@ -95,109 +486,89 @@
           .select("user_id")
           .eq("user_id", userId)
           .maybeSingle();
-
         if (!error && data) return;
-
         await supabase.from("profiles").insert({ user_id: userId, display_name: "" });
       }
 
       async function loadProfile(user) {
         await ensureProfileRow(user.id);
-
         const { data, error } = await supabase
           .from("profiles")
           .select("display_name")
           .eq("user_id", user.id)
           .maybeSingle();
-
-        if (error) {
-          nameEl.value = "";
-          return;
-        }
-
-        nameEl.value = data?.display_name || "";
+        nameEl.value = error ? "" : (data?.display_name || "");
       }
 
       function redirectToReturnToWithSession(session) {
-        // returnTo can be https://xmenu.dev/ or https://rls.xmenu.dev/ (or any allowed origin)
         const origin = new URL(returnTo).origin;
         const callback = new URL("/auth/callback.html", origin);
-
         callback.hash = new URLSearchParams({
           access_token: session.access_token,
           refresh_token: session.refresh_token,
           returnTo
         }).toString();
-
         location.assign(callback.toString());
       }
 
-      async function showLoggedOut() {
-        authSection.classList.remove("hidden");
-        profileSection.classList.add("hidden");
-        signedInAsEl.textContent = "—";
-        nameEl.value = "";
-      }
-
       async function showLoggedIn(user) {
-        authSection.classList.add("hidden");
-        profileSection.classList.remove("hidden");
         signedInAsEl.textContent = user.email || user.id;
         await loadProfile(user);
+        showPanel("profile");
       }
 
-      document.getElementById("login").addEventListener("click", async () => {
+      // ── Step 1: choose ──
+      document.getElementById("chooseLogin").addEventListener("click", () => showPanel("login"));
+      document.getElementById("chooseRegister").addEventListener("click", () => showPanel("register"));
+
+      // ── Step 2a: login ──
+      document.getElementById("backFromLogin").addEventListener("click", () => showPanel("choose"));
+      document.getElementById("loginBtn").addEventListener("click", async () => {
         setMsg("");
-        const email = emailEl.value.trim();
-        const password = passwordEl.value;
-
+        const email = document.getElementById("loginEmail").value.trim();
+        const password = document.getElementById("loginPassword").value;
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) { setMsg(error.message); return; }
-        if (!data.session) { setMsg("No session returned."); return; }
-
+        if (error) { setMsg(error.message, "error"); return; }
+        if (!data.session) { setMsg("Keine Sitzung erhalten.", "error"); return; }
         await showLoggedIn(data.user);
         redirectToReturnToWithSession(data.session);
       });
 
-      document.getElementById("register").addEventListener("click", async () => {
+      // ── Step 2b: register ──
+      document.getElementById("backFromRegister").addEventListener("click", () => showPanel("choose"));
+      document.getElementById("registerBtn").addEventListener("click", async () => {
         setMsg("");
-        const email = emailEl.value.trim();
-        const password = passwordEl.value;
-
+        const email = document.getElementById("regEmail").value.trim();
+        const password = document.getElementById("regPassword").value;
         const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) { setMsg(error.message); return; }
-
-        // If email confirmations are enabled, session can be null until confirmed
+        if (error) { setMsg(error.message, "error"); return; }
         if (!data.session) {
-          setMsg("Check your email to confirm the account, then log in.");
+          setMsg("Bitte bestätige deine E-Mail-Adresse, dann melde dich an.", "success");
           return;
         }
-
         await showLoggedIn(data.user);
         redirectToReturnToWithSession(data.session);
       });
 
+      // ── Step 3: profile ──
       document.getElementById("saveName").addEventListener("click", async () => {
         setMsg("");
         const { data } = await supabase.auth.getUser();
         const user = data.user;
-        if (!user) { setMsg("Not logged in."); return; }
-
+        if (!user) { setMsg("Nicht angemeldet.", "error"); return; }
         const display_name = nameEl.value.trim();
-
         const { error } = await supabase
           .from("profiles")
           .upsert({ user_id: user.id, display_name })
           .eq("user_id", user.id);
-
-        if (error) setMsg(error.message);
-        else setMsg("Saved.");
+        if (error) setMsg(error.message, "error");
+        else setMsg("Gespeichert ✓", "success");
       });
 
       document.getElementById("logout").addEventListener("click", async () => {
         await supabase.auth.signOut();
-        await showLoggedOut();
-        setMsg("Logged out.");
+        showPanel("choose");
+        setMsg("Erfolgreich abgemeldet.", "success");
       });
 
       document.getElementById("back").addEventListener("click", async () => {
@@ -206,13 +577,11 @@
         else location.assign(returnTo);
       });
 
-      // Requires /api/delete-user on accounts.xmenu.dev (Vercel serverless)
       document.getElementById("delete").addEventListener("click", async () => {
         setMsg("");
         const { data } = await supabase.auth.getSession();
         const s = data.session;
-        if (!s) { setMsg("Not logged in."); return; }
-
+        if (!s) { setMsg("Nicht angemeldet.", "error"); return; }
         const res = await fetch("/api/delete-user", {
           method: "POST",
           headers: {
@@ -221,12 +590,7 @@
           },
           body: "{}"
         });
-
-        if (!res.ok) {
-          setMsg(await res.text());
-          return;
-        }
-
+        if (!res.ok) { setMsg(await res.text(), "error"); return; }
         await supabase.auth.signOut();
         location.assign(returnTo);
       });
@@ -234,7 +598,7 @@
       // Initial state
       const { data } = await supabase.auth.getUser();
       if (data.user) await showLoggedIn(data.user);
-      else await showLoggedOut();
+      else showPanel("choose");
     </script>
   </body>
 </html>
